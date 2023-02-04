@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option go_package = "filehub/pkg/proto";
+
+package fileManager;
+
+service FileManager {
+    rpc Prepare(FileInfo) returns (FileInfo);
+    rpc UploadBlock(stream Block) returns (Block);   
+    rpc Finish(FileInfo) returns (FileInfo);
+}
+
+message Block {
+    string id = 1;
+    uint32 sequence = 2;
+    string filename = 3;
+    int64 size = 4;
+    bytes data = 5;
+}
+
+message FileInfo {
+    string id = 1;
+    string name = 2;
+    int64 size = 3;
+    int64 blockNum = 4;
+}
