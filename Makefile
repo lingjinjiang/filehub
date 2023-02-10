@@ -22,12 +22,14 @@ proto:
 
 build-client: proto
 	@echo build client
-	@rm -rf ${CLIENT_CMD}
+	@mkdir -p ${BIN_DIR}
+	@rm -f ${CLIENT_CMD}
 	go build -o ${CLIENT_CMD} ${CLIENT_CMD_DIR}
 
 build-server: proto
 	@echo build server
-	@rm -rf ${SERVER_CMD}
+	@mkdir -p ${BIN_DIR}
+	@rm -f ${SERVER_CMD}
 	go build -o ${SERVER_CMD} ${SERVER_CMD_DIR}
 
 build: build-client build-server
