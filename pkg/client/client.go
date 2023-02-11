@@ -125,12 +125,7 @@ func runStream(address string, blockCh chan blockInfo, out chan int64) {
 		panic(err)
 	}
 	cli := proto.NewFileManagerClient(conn)
-	stream, err := cli.UploadBlock(context.Background())
-	if err != nil {
-		panic(err)
-	}
 	defer func() {
-		stream.CloseAndRecv()
 		conn.Close()
 		out <- 1
 	}()
@@ -139,6 +134,10 @@ func runStream(address string, blockCh chan blockInfo, out chan int64) {
 		blockInfo = <-blockCh
 		if blockInfo.sequence == -1 {
 			break
+		}
+		stream, err := cli.UploadBlock(context.Background())
+		if err != nil {
+			panic(err)
 		}
 		data := make([]byte, blockInfo.dataSize)
 		blockInfo.file.ReadAt(data, int64(blockInfo.sequence)*common.BLOCK_SIZE)
@@ -149,6 +148,7 @@ func runStream(address string, blockCh chan blockInfo, out chan int64) {
 		}); err != nil {
 			panic(err)
 		}
+		stream.CloseAndRecv()
 		out <- 1
 	}
 }
