@@ -58,15 +58,9 @@ func (c *FClient) prepare(inputFile string) (*proto.FileInfo, error) {
 		return nil, err
 	}
 	stat, _ := file.Stat()
-	size := stat.Size()
-	blockNum := size / common.BLOCK_SIZE
-	if size%common.BLOCK_SIZE != 0 {
-		blockNum++
-	}
 	if fileInfo, err := c.fmClient.Prepare(context.Background(), &proto.FileInfo{
-		Name:     filepath.Base(inputFile),
-		Size:     size,
-		BlockNum: blockNum,
+		Name: filepath.Base(inputFile),
+		Size: stat.Size(),
 	}); err != nil {
 		return nil, err
 	} else {

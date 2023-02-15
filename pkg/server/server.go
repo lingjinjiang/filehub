@@ -2,20 +2,25 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"filehub/pkg/common"
 	"filehub/pkg/proto"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/google/uuid"
 )
 
+const metaFile string = "meta.json"
+
 type FileManageServerImpl struct {
 	proto.UnimplementedFileManagerServer
 	dataDir   string
 	tmpSuffix string
+	files     map[string]*proto.FileInfo
 }
 
 func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.FileInfo) (*proto.FileInfo, error) {
@@ -26,13 +31,18 @@ func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.File
 	destFile, err := os.Create(filepath.Join(f.dataDir, fileInfo.Name+f.tmpSuffix))
 	if err != nil {
 		fmt.Println("Failed to create file", fileInfo.Name, err.Error())
-		return fileInfo, err
+		return nil, err
 	}
 	defer destFile.Close()
 	if err := destFile.Truncate(fileInfo.Size); err != nil {
 		fmt.Println("Failed to truncate file", fileInfo.Name, err.Error())
-		return fileInfo, err
+		return nil, err
 	}
+	fileInfo.BlockSize = common.BLOCK_SIZE
+	fileInfo.BlockNum = fileInfo.Size / common.BLOCK_SIZE
+	fileInfo.Blocks = make(map[int32]*proto.Block)
+	fileInfo.Status = proto.Status_Unavailable
+	f.files[fileInfo.Id] = fileInfo
 	return fileInfo, nil
 }
 
@@ -65,8 +75,19 @@ func (f *FileManageServerImpl) Finish(ctx context.Context, fileInfo *proto.FileI
 }
 
 func NewServer() *FileManageServerImpl {
+	dataDir := "/tmp"
+
 	return &FileManageServerImpl{
-		dataDir:   "/tmp",
+		dataDir:   dataDir,
 		tmpSuffix: ".tmp",
+		files:     loadMetaData(filepath.Join(dataDir, metaFile)),
 	}
+}
+
+func loadMetaData(filePath string) map[string]*proto.FileInfo {
+	files := make(map[string]*proto.FileInfo)
+	if data, err := ioutil.ReadFile(filePath); err == nil {
+		json.Unmarshal(data, files)
+	}
+	return files
 }

@@ -10,12 +10,18 @@ service FileManager {
     rpc Finish(FileInfo) returns (FileInfo);
 }
 
+enum Status {
+    Available = 0;
+    Unavailable = 1;
+}
+
 message Block {
     string id = 1;
     uint32 sequence = 2;
     string filename = 3;
     int64 size = 4;
     bytes data = 5;
+    Status status = 6;
 }
 
 message FileInfo {
@@ -23,4 +29,7 @@ message FileInfo {
     string name = 2;
     int64 size = 3;
     int64 blockNum = 4;
+    map<int32, Block> blocks = 5;
+    Status status = 6;
+    int64 blockSize = 7;
 }
