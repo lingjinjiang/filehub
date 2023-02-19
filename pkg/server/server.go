@@ -7,7 +7,6 @@ import (
 	"filehub/pkg/proto"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -42,7 +41,7 @@ func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.File
 	fileInfo.BlockNum = fileInfo.Size / common.BLOCK_SIZE
 	fileInfo.Blocks = make(map[int32]*proto.Block)
 	fileInfo.Status = proto.Status_Unavailable
-	f.files[fileInfo.Id] = fileInfo
+	f.files[fileInfo.Name] = fileInfo
 	return fileInfo, nil
 }
 
@@ -70,6 +69,8 @@ func (f *FileManageServerImpl) UploadBlock(stream proto.FileManager_UploadBlockS
 
 func (f *FileManageServerImpl) Finish(ctx context.Context, fileInfo *proto.FileInfo) (*proto.FileInfo, error) {
 	os.Rename(filepath.Join(f.dataDir, fileInfo.Name+f.tmpSuffix), filepath.Join(f.dataDir, fileInfo.Name))
+	f.files[fileInfo.Name] = fileInfo
+	saveMetaData(f.files)
 	fmt.Println("Finish receiving", fileInfo.Name)
 	return fileInfo, nil
 }
@@ -85,9 +86,19 @@ func NewServer() *FileManageServerImpl {
 }
 
 func loadMetaData(filePath string) map[string]*proto.FileInfo {
-	files := make(map[string]*proto.FileInfo)
-	if data, err := ioutil.ReadFile(filePath); err == nil {
+	var files map[string]*proto.FileInfo
+	os.Create(filePath)
+	if data, err := os.ReadFile(filePath); err == nil {
 		json.Unmarshal(data, files)
 	}
+	if files == nil {
+		files = make(map[string]*proto.FileInfo)
+	}
 	return files
+}
+
+func saveMetaData(files map[string]*proto.FileInfo) {
+	data, _ := json.Marshal(files)
+	f, _ := os.OpenFile(filepath.Join("/tmp", metaFile), os.O_RDWR, os.ModeAppend)
+	f.Write(data)
 }
