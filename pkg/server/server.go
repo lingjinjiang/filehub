@@ -39,6 +39,9 @@ func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.File
 	}
 	fileInfo.BlockSize = common.BLOCK_SIZE
 	fileInfo.BlockNum = fileInfo.Size / common.BLOCK_SIZE
+	if fileInfo.Size%common.BLOCK_SIZE != 0 {
+		fileInfo.BlockNum++
+	}
 	fileInfo.Blocks = make(map[int32]*proto.Block)
 	fileInfo.Status = proto.Status_Unavailable
 	f.files[fileInfo.Name] = fileInfo
@@ -46,6 +49,10 @@ func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.File
 }
 
 func (f *FileManageServerImpl) UploadBlock(stream proto.FileManager_UploadBlockServer) error {
+	data := make([]byte, 0)
+	var filename string
+	id := uuid.New().String()
+	var sequence uint32
 	for {
 		block, err := stream.Recv()
 		if err != nil {
@@ -54,15 +61,19 @@ func (f *FileManageServerImpl) UploadBlock(stream proto.FileManager_UploadBlockS
 			}
 			return err
 		}
-		destFile, err := os.OpenFile(filepath.Join(f.dataDir, block.Filename+f.tmpSuffix), os.O_RDWR, os.ModeAppend)
-		if err != nil {
-			return err
-		}
-		defer destFile.Close()
-		block.Id = uuid.New().String()
-		if _, err = destFile.WriteAt(block.Data, int64(block.Sequence)*common.BLOCK_SIZE); err != nil {
-			return err
-		}
+		block.Id = id
+		sequence = block.Sequence
+		filename = block.Filename
+		data = append(data, block.Data...)
+
+	}
+	destFile, err := os.OpenFile(filepath.Join(f.dataDir, filename+f.tmpSuffix), os.O_RDWR, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+	if _, err = destFile.WriteAt(data, int64(sequence)*common.BLOCK_SIZE); err != nil {
+		return err
 	}
 	return nil
 }

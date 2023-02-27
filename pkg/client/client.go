@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const buffer_size = 1024 * 1024
+
 type FClient struct {
 	address  string
 	threads  int
@@ -133,15 +135,27 @@ func runStream(address string, blockCh chan blockInfo, out chan int64) {
 		if err != nil {
 			panic(err)
 		}
-		data := make([]byte, blockInfo.dataSize)
-		blockInfo.file.ReadAt(data, int64(blockInfo.sequence)*common.BLOCK_SIZE)
-		if err := stream.Send(&proto.Block{
-			Sequence: uint32(blockInfo.sequence),
-			Filename: blockInfo.filename,
-			Data:     data,
-		}); err != nil {
-			panic(err)
+		offset := int64(blockInfo.sequence) * common.BLOCK_SIZE
+		end := offset + blockInfo.dataSize
+		for offset < end {
+			var data []byte
+			if end-offset > buffer_size {
+				data = make([]byte, buffer_size)
+			} else {
+				data = make([]byte, end-offset)
+
+			}
+			blockInfo.file.ReadAt(data, offset)
+			if err := stream.Send(&proto.Block{
+				Sequence: uint32(blockInfo.sequence),
+				Filename: blockInfo.filename,
+				Data:     data,
+			}); err != nil {
+				panic(err)
+			}
+			offset += buffer_size
 		}
+
 		stream.CloseAndRecv()
 		out <- 1
 	}
