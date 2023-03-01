@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"filehub/pkg/common"
 	"filehub/pkg/proto"
-	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -23,18 +23,18 @@ type FileManageServerImpl struct {
 }
 
 func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.FileInfo) (*proto.FileInfo, error) {
-	fmt.Println("Begin Receiving", fileInfo.Name)
+	log.Println("Begin Receiving", fileInfo.Name)
 	if len(fileInfo.Id) == 0 {
 		fileInfo.Id = uuid.New().String()
 	}
 	destFile, err := os.Create(filepath.Join(f.dataDir, fileInfo.Name+f.tmpSuffix))
 	if err != nil {
-		fmt.Println("Failed to create file", fileInfo.Name, err.Error())
+		log.Println("Failed to create file", fileInfo.Name, err.Error())
 		return nil, err
 	}
 	defer destFile.Close()
 	if err := destFile.Truncate(fileInfo.Size); err != nil {
-		fmt.Println("Failed to truncate file", fileInfo.Name, err.Error())
+		log.Println("Failed to truncate file", fileInfo.Name, err.Error())
 		return nil, err
 	}
 	fileInfo.BlockSize = common.BLOCK_SIZE
@@ -81,14 +81,13 @@ func (f *FileManageServerImpl) UploadBlock(stream proto.FileManager_UploadBlockS
 func (f *FileManageServerImpl) Finish(ctx context.Context, fileInfo *proto.FileInfo) (*proto.FileInfo, error) {
 	os.Rename(filepath.Join(f.dataDir, fileInfo.Name+f.tmpSuffix), filepath.Join(f.dataDir, fileInfo.Name))
 	f.files[fileInfo.Name] = fileInfo
-	saveMetaData(f.files)
-	fmt.Println("Finish receiving", fileInfo.Name)
+	saveMetaData(filepath.Join(f.dataDir, metaFile), f.files)
+	log.Println("Finish receiving", fileInfo.Name)
 	return fileInfo, nil
 }
 
-func NewServer() *FileManageServerImpl {
-	dataDir := "/tmp"
-
+func NewServer(dataDir string) *FileManageServerImpl {
+	log.Println("dataDir:", dataDir)
 	return &FileManageServerImpl{
 		dataDir:   dataDir,
 		tmpSuffix: ".tmp",
@@ -108,8 +107,8 @@ func loadMetaData(filePath string) map[string]*proto.FileInfo {
 	return files
 }
 
-func saveMetaData(files map[string]*proto.FileInfo) {
+func saveMetaData(filePath string, files map[string]*proto.FileInfo) {
 	data, _ := json.Marshal(files)
-	f, _ := os.OpenFile(filepath.Join("/tmp", metaFile), os.O_RDWR, os.ModeAppend)
+	f, _ := os.OpenFile(filePath, os.O_RDWR, os.ModeAppend)
 	f.Write(data)
 }
