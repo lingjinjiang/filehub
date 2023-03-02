@@ -29,7 +29,6 @@ func NewCommand() *cobra.Command {
 					fmt.Println(err)
 				}
 			}()
-			fmt.Println(args)
 			if len(args) < 1 {
 				cmd.Help()
 				return

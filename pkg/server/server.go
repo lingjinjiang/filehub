@@ -23,6 +23,10 @@ type FileManageServerImpl struct {
 }
 
 func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.FileInfo) (*proto.FileInfo, error) {
+	destFileInfo := f.files[fileInfo.Name]
+	if destFileInfo != nil && destFileInfo.Status == proto.Status_Available {
+		return destFileInfo, nil
+	}
 	log.Println("Begin Receiving", fileInfo.Name)
 	if len(fileInfo.Id) == 0 {
 		fileInfo.Id = uuid.New().String()
@@ -80,6 +84,7 @@ func (f *FileManageServerImpl) UploadBlock(stream proto.FileManager_UploadBlockS
 
 func (f *FileManageServerImpl) Finish(ctx context.Context, fileInfo *proto.FileInfo) (*proto.FileInfo, error) {
 	os.Rename(filepath.Join(f.dataDir, fileInfo.Name+f.tmpSuffix), filepath.Join(f.dataDir, fileInfo.Name))
+	fileInfo.Status = proto.Status_Available
 	f.files[fileInfo.Name] = fileInfo
 	saveMetaData(filepath.Join(f.dataDir, metaFile), f.files)
 	log.Println("Finish receiving", fileInfo.Name)
@@ -96,10 +101,14 @@ func NewServer(dataDir string) *FileManageServerImpl {
 }
 
 func loadMetaData(filePath string) map[string]*proto.FileInfo {
-	var files map[string]*proto.FileInfo
-	os.Create(filePath)
+	files := make(map[string]*proto.FileInfo)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		if _, err := os.Create(filePath); err != nil {
+			panic(err)
+		}
+	}
 	if data, err := os.ReadFile(filePath); err == nil {
-		json.Unmarshal(data, files)
+		json.Unmarshal(data, &files)
 	}
 	if files == nil {
 		files = make(map[string]*proto.FileInfo)

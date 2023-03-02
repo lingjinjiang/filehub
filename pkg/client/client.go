@@ -47,6 +47,10 @@ func (c *FClient) Upload(inputFile string) (*proto.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	if fileInfo.Status == proto.Status_Available {
+		fmt.Println(fileInfo.Name, "already exists, skip upload")
+		return fileInfo, nil
+	}
 	c.uploadBlocks(inputFile, fileInfo)
 	if err := c.finish(fileInfo); err != nil {
 		return nil, err
