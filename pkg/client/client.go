@@ -67,6 +67,7 @@ func (c *FClient) prepare(inputFile string) (*proto.FileInfo, error) {
 	if fileInfo, err := c.fmClient.Prepare(context.Background(), &proto.FileInfo{
 		Name: filepath.Base(inputFile),
 		Size: stat.Size(),
+		Perm: uint32(stat.Mode()),
 	}); err != nil {
 		return nil, err
 	} else {

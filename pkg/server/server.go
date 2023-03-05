@@ -6,6 +6,7 @@ import (
 	"filehub/pkg/common"
 	"filehub/pkg/proto"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -31,7 +32,7 @@ func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.File
 	if len(fileInfo.Id) == 0 {
 		fileInfo.Id = uuid.New().String()
 	}
-	destFile, err := os.Create(filepath.Join(f.dataDir, fileInfo.Name+f.tmpSuffix))
+	destFile, err := os.OpenFile(filepath.Join(f.dataDir, fileInfo.Name+f.tmpSuffix), os.O_RDWR|os.O_CREATE|os.O_TRUNC, fs.FileMode(fileInfo.Perm))
 	if err != nil {
 		log.Println("Failed to create file", fileInfo.Name, err.Error())
 		return nil, err

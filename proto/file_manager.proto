@@ -32,4 +32,5 @@ message FileInfo {
     map<int32, Block> blocks = 5;
     Status status = 6;
     int64 blockSize = 7;
+    uint32 perm = 8;
 }
