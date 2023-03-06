@@ -42,8 +42,8 @@ func (c *FClient) Connect() error {
 	return nil
 }
 
-func (c *FClient) Upload(inputFile string) (*proto.FileInfo, error) {
-	fileInfo, err := c.prepare(inputFile)
+func (c *FClient) Upload(inputFile string, force bool) (*proto.FileInfo, error) {
+	fileInfo, err := c.prepare(inputFile, force)
 	if err != nil {
 		return nil, err
 	}
@@ -58,17 +58,27 @@ func (c *FClient) Upload(inputFile string) (*proto.FileInfo, error) {
 	return fileInfo, nil
 }
 
-func (c *FClient) prepare(inputFile string) (*proto.FileInfo, error) {
+func (c *FClient) prepare(inputFile string, force bool) (*proto.FileInfo, error) {
 	file, err := os.Open(inputFile)
 	if err != nil {
 		return nil, err
 	}
 	stat, _ := file.Stat()
-	if fileInfo, err := c.fmClient.Prepare(context.Background(), &proto.FileInfo{
-		Name: filepath.Base(inputFile),
-		Size: stat.Size(),
-		Perm: uint32(stat.Mode()),
-	}); err != nil {
+	var fileInfo *proto.FileInfo
+	if force {
+		fileInfo, err = c.fmClient.ForcePrepare(context.Background(), &proto.FileInfo{
+			Name: filepath.Base(inputFile),
+			Size: stat.Size(),
+			Perm: uint32(stat.Mode()),
+		})
+	} else {
+		fileInfo, err = c.fmClient.Prepare(context.Background(), &proto.FileInfo{
+			Name: filepath.Base(inputFile),
+			Size: stat.Size(),
+			Perm: uint32(stat.Mode()),
+		})
+	}
+	if err != nil {
 		return nil, err
 	} else {
 		return fileInfo, nil

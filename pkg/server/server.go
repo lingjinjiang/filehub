@@ -28,6 +28,10 @@ func (f *FileManageServerImpl) Prepare(ctx context.Context, fileInfo *proto.File
 	if destFileInfo != nil && destFileInfo.Status == proto.Status_Available {
 		return destFileInfo, nil
 	}
+	return f.ForcePrepare(ctx, fileInfo)
+}
+
+func (f *FileManageServerImpl) ForcePrepare(ctx context.Context, fileInfo *proto.FileInfo) (*proto.FileInfo, error) {
 	log.Println("Begin Receiving", fileInfo.Name)
 	if len(fileInfo.Id) == 0 {
 		fileInfo.Id = uuid.New().String()

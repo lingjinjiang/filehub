@@ -11,6 +11,7 @@ import (
 var (
 	server  string
 	threads int
+	force   bool
 )
 
 func main() {
@@ -38,7 +39,7 @@ func NewCommand() *cobra.Command {
 			if err := cli.Connect(); err != nil {
 				panic(err)
 			}
-			fileInfo, err := cli.Upload(inputFile)
+			fileInfo, err := cli.Upload(inputFile, force)
 			if err != nil {
 				panic(err)
 			}
@@ -49,5 +50,6 @@ func NewCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&server, "server", "127.0.0.1:9999", "server's address")
 	flags.IntVarP(&threads, "threads", "t", 3, "threads to upload file")
+	flags.BoolVarP(&force, "force", "f", false, "force upload")
 	return cmd
 }

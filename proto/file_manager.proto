@@ -6,6 +6,7 @@ package fileManager;
 
 service FileManager {
     rpc Prepare(FileInfo) returns (FileInfo);
+    rpc ForcePrepare(FileInfo) returns (FileInfo);
     rpc UploadBlock(stream Block) returns (Block);   
     rpc Finish(FileInfo) returns (FileInfo);
 }
