@@ -93,7 +93,7 @@ func (c *FClient) uploadBlocks(inputFile string, fileInfo *proto.FileInfo) {
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	go printProgress(fileInfo.BlockNum, out, &wg)
+	go printProgress(fileInfo.Size, out, &wg)
 	file, err := os.Open(inputFile)
 	if err != nil {
 		panic(err)
@@ -116,14 +116,14 @@ func (c *FClient) uploadBlocks(inputFile string, fileInfo *proto.FileInfo) {
 	}
 }
 
-func printProgress(blockNum int64, out chan int64, wg *sync.WaitGroup) {
-	var finished int64 = 0
-	for finished < blockNum {
-		i := finished * 100 / blockNum
+func printProgress(size int64, out chan int64, wg *sync.WaitGroup) {
+	var uploadSize int64 = 0
+	for uploadSize < size {
+		i := uploadSize * 100 / size
 		format := fmt.Sprintf("\r[%s%%-%ds]%%4d%%%%", strings.Repeat("=", int(i/5)), 20-int(i/5))
 		last := ">"
 		fmt.Printf(format, last, i)
-		finished += <-out
+		uploadSize += (<-out) * buffer_size
 	}
 	format := fmt.Sprintf("\r[%s%%-%ds]%%4d%%%%", strings.Repeat("=", 20), 0)
 	fmt.Printf(format+"\n", "", 100)
@@ -169,10 +169,9 @@ func runStream(address string, blockCh chan blockInfo, out chan int64) {
 				panic(err)
 			}
 			offset += buffer_size
+			out <- 1
 		}
-
 		stream.CloseAndRecv()
-		out <- 1
 	}
 }
 
