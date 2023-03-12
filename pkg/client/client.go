@@ -86,14 +86,14 @@ func (c *FClient) prepare(inputFile string, force bool) (*proto.FileInfo, error)
 }
 
 func (c *FClient) uploadBlocks(inputFile string, fileInfo *proto.FileInfo) {
-	blockCh := make(chan blockInfo, 2)
+	blockCh := make(chan blockInfo, c.threads)
 	out := make(chan int64, 1)
-	for i := 0; i < c.threads; i++ {
-		go runStream(c.address, blockCh, out)
-	}
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go printProgress(fileInfo.Size, out, &wg)
+	wg.Add(int(fileInfo.BlockNum))
+	for i := 0; i < c.threads; i++ {
+		go runStream(c.address, blockCh, out, &wg)
+	}
+	go printProgress(fileInfo.Size, out)
 	file, err := os.Open(inputFile)
 	if err != nil {
 		panic(err)
@@ -116,7 +116,7 @@ func (c *FClient) uploadBlocks(inputFile string, fileInfo *proto.FileInfo) {
 	}
 }
 
-func printProgress(size int64, out chan int64, wg *sync.WaitGroup) {
+func printProgress(size int64, out chan int64) {
 	var uploadSize int64 = 0
 	for uploadSize < size {
 		i := uploadSize * 100 / size
@@ -127,10 +127,9 @@ func printProgress(size int64, out chan int64, wg *sync.WaitGroup) {
 	}
 	format := fmt.Sprintf("\r[%s%%-%ds]%%4d%%%%", strings.Repeat("=", 20), 0)
 	fmt.Printf(format+"\n", "", 100)
-	wg.Done()
 }
 
-func runStream(address string, blockCh chan blockInfo, out chan int64) {
+func runStream(address string, blockCh chan blockInfo, out chan int64, wg *sync.WaitGroup) {
 	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
@@ -172,6 +171,7 @@ func runStream(address string, blockCh chan blockInfo, out chan int64) {
 			out <- 1
 		}
 		stream.CloseAndRecv()
+		wg.Done()
 	}
 }
 
