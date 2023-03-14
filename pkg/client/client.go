@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -87,13 +88,13 @@ func (c *FClient) prepare(inputFile string, force bool) (*proto.FileInfo, error)
 
 func (c *FClient) uploadBlocks(inputFile string, fileInfo *proto.FileInfo) {
 	blockCh := make(chan blockInfo, c.threads)
-	out := make(chan int64, 1)
+	var uploadSize int64 = 0
 	wg := sync.WaitGroup{}
 	wg.Add(int(fileInfo.BlockNum))
 	for i := 0; i < c.threads; i++ {
-		go runStream(c.address, blockCh, out, &wg)
+		go runStream(c.address, blockCh, &uploadSize, &wg)
 	}
-	go printProgress(fileInfo.Size, out)
+	go printProgress(fileInfo.Size, &uploadSize)
 	file, err := os.Open(inputFile)
 	if err != nil {
 		panic(err)
@@ -116,20 +117,19 @@ func (c *FClient) uploadBlocks(inputFile string, fileInfo *proto.FileInfo) {
 	}
 }
 
-func printProgress(size int64, out chan int64) {
-	var uploadSize int64 = 0
-	for uploadSize < size {
-		i := uploadSize * 100 / size
+func printProgress(size int64, uploadSize *int64) {
+	for *uploadSize < size {
+		i := *uploadSize * 100 / size
 		format := fmt.Sprintf("\r[%s%%-%ds]%%4d%%%%", strings.Repeat("=", int(i/5)), 20-int(i/5))
 		last := ">"
 		fmt.Printf(format, last, i)
-		uploadSize += (<-out) * buffer_size
+		time.Sleep(200 * time.Millisecond)
 	}
 	format := fmt.Sprintf("\r[%s%%-%ds]%%4d%%%%", strings.Repeat("=", 20), 0)
 	fmt.Printf(format+"\n", "", 100)
 }
 
-func runStream(address string, blockCh chan blockInfo, out chan int64, wg *sync.WaitGroup) {
+func runStream(address string, blockCh chan blockInfo, uploadSize *int64, wg *sync.WaitGroup) {
 	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
@@ -137,7 +137,6 @@ func runStream(address string, blockCh chan blockInfo, out chan int64, wg *sync.
 	cli := proto.NewFileManagerClient(conn)
 	defer func() {
 		conn.Close()
-		out <- 1
 	}()
 	var blockInfo blockInfo
 	for {
@@ -168,7 +167,7 @@ func runStream(address string, blockCh chan blockInfo, out chan int64, wg *sync.
 				panic(err)
 			}
 			offset += buffer_size
-			out <- 1
+			*uploadSize += buffer_size
 		}
 		stream.CloseAndRecv()
 		wg.Done()

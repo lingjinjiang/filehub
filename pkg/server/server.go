@@ -76,6 +76,7 @@ func (f *FileManageServerImpl) UploadBlock(stream proto.FileManager_UploadBlockS
 		data = append(data, block.Data...)
 
 	}
+
 	destFile, err := os.OpenFile(filepath.Join(f.dataDir, filename+f.tmpSuffix), os.O_RDWR, os.ModeAppend)
 	if err != nil {
 		return err
