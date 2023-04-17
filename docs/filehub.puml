@@ -1,0 +1,22 @@
+@startmindmap
+
++ filehub
+
+++ cli
++++ uploadFileSender
++++ uploadBlockSender
++++ downloadFileReceiver
++++ downloadBlockReceiver
+
+++ datanode
++++ heartbeatSender
++++ uploadBlockReceive
++++ downloadSender
+
+++ master
++++ heartbeatReceiver
++++ uploadBlockReceive
++++ downloadFileSender
+
+
+@endmindmap
